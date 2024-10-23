@@ -115,6 +115,7 @@ import { AppearanceInit } from './appearance-init.js';
 import type { AuthenticationProviderInfo } from './authentication.js';
 import { AuthenticationImpl } from './authentication.js';
 import { AutostartEngine } from './autostart-engine.js';
+import { AutostopEngine } from './autostop-engine.js';
 import { CancellationTokenRegistry } from './cancellation-token-registry.js';
 import { Certificates } from './certificates.js';
 import { CliToolRegistry } from './cli-tool-registry.js';
@@ -538,6 +539,9 @@ export class PluginSystem {
 
     const autoStartEngine = new AutostartEngine(configurationRegistry, providerRegistry);
     providerRegistry.registerAutostartEngine(autoStartEngine);
+
+    const autoStopEngine = new AutostopEngine(configurationRegistry, providerRegistry);
+    providerRegistry.registerAutostopEngine(autoStopEngine);
 
     providerRegistry.addProviderListener((name: string, providerInfo: ProviderInfo) => {
       if (name === 'provider:update-status') {

@@ -68,6 +68,7 @@ let isMovedPodmanSocket = false;
 let storedExtensionContext: extensionApi.ExtensionContext | undefined;
 let stopLoop = false;
 let autoMachineStarted = false;
+let autoMachineStopped = false;
 let autoMachineName: string | undefined;
 
 // System default notifier
@@ -1498,6 +1499,38 @@ export async function activate(extensionContext: extensionApi.ExtensionContext):
       }
     },
   });
+  provider.registerAutostop({
+    stop: async (logger: extensionApi.Logger) => {
+      const isRunningMachine = Array.from(podmanMachinesStatuses.values()).find(
+        connectionStatus => connectionStatus === 'started' || connectionStatus === 'starting',
+      );
+      if (!isRunningMachine) {
+        console.log('Podman extension:', 'Do not stop a machine as there is already one stopped');
+        return;
+      }
+
+      const machines = Array.from(podmanMachinesStatuses.entries());
+      if (machines.length > 0) {
+        const [machineName] = machines[0];
+        if (!podmanMachinesInfo.has(machineName)) {
+          console.error('Unable to retrieve machine infos to be autostopped', machineName);
+        } else {
+          console.log('Podman extension:', 'Autostopping machine', machineName);
+          const machineInfo = podmanMachinesInfo.get(machineName);
+          const containerProviderConnection = containerProviderConnections.get(machineName);
+          if (containerProviderConnection && machineInfo) {
+            const context: extensionApi.LifecycleContext = extensionApi.provider.getProviderLifecycleContext(
+              provider.id,
+              containerProviderConnection,
+            );
+            await stopMachine(provider, machineInfo, context, logger);
+            autoMachineStopped = true;
+            autoMachineName = machineName;
+          }
+        }
+      }
+    }
+  })
 
   extensionContext.subscriptions.push(provider);
 

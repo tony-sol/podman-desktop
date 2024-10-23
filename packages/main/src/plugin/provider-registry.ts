@@ -25,6 +25,7 @@ import type {
   Logger,
   Provider,
   ProviderAutostart,
+  ProviderAutostop,
   ProviderCleanup,
   ProviderCleanupAction,
   ProviderCleanupExecuteOptions,
@@ -60,6 +61,7 @@ import type {
 
 import type { ApiSenderType } from './api.js';
 import type { AutostartEngine } from './autostart-engine.js';
+import type { AutostopEngine } from './autostop-engine.js';
 import type { ContainerProviderRegistry } from './container-registry.js';
 import type { Event } from './events/emitter.js';
 import { Emitter } from './events/emitter.js';
@@ -95,8 +97,10 @@ export class ProviderRegistry {
   private providerInstallations: Map<string, ProviderInstallation> = new Map();
   private providerUpdates: Map<string, ProviderUpdate> = new Map();
   private providerAutostarts: Map<string, ProviderAutostart> = new Map();
+  private providerAutostops: Map<string, ProviderAutostop> = new Map();
   private providerCleanup: Map<string, ProviderCleanup> = new Map();
   private autostartEngine: AutostartEngine | undefined = undefined;
+  private autostopEngine: AutostopEngine | undefined = undefined;
 
   private connectionLifecycleContexts: Map<
     ContainerProviderConnection | KubernetesProviderConnection,
@@ -263,6 +267,10 @@ export class ProviderRegistry {
     this.autostartEngine = engine;
   }
 
+  registerAutostopEngine(engine: AutostopEngine): void {
+    this.autostopEngine = engine;
+  }
+
   registerAutostart(providerImpl: ProviderImpl, autostart: ProviderAutostart): Disposable {
     if (!this.autostartEngine) {
       throw new Error('no autostart engine has been registered. Autostart feature is disabled');
@@ -276,6 +284,23 @@ export class ProviderRegistry {
     );
     return Disposable.create(() => {
       this.providerAutostarts.delete(providerImpl.internalId);
+      disposable.dispose();
+    });
+  }
+
+  registerAutostop(providerImpl: ProviderImpl, autostop: ProviderAutostop): Disposable {
+    if (!this.autostopEngine) {
+      throw new Error('no autostop engine has been registered. Autostop feature is disabled');
+    }
+
+    this.providerAutostops.set(providerImpl.internalId, autostop);
+    const disposable = this.autostopEngine.registerProvider(
+      providerImpl.extensionId,
+      providerImpl.extensionDisplayName,
+      providerImpl.internalId,
+    );
+    return Disposable.create(() => {
+      this.providerAutostops.delete(providerImpl.internalId);
       disposable.dispose();
     });
   }
@@ -400,6 +425,27 @@ export class ProviderRegistry {
     const provider = this.getMatchingProvider(internalId);
 
     await autoStart.start(new LoggerImpl());
+
+    // send the event
+    this._onDidUpdateProvider.fire({
+      id: provider.id,
+      name: provider.name,
+      status: provider.status,
+    });
+  }
+
+  // run autostop on all providers supporting this option
+  async runAutostop(internalId: string): Promise<void> {
+    // grab auto start provider
+    const autoStop = this.providerAutostops.get(internalId);
+    if (!autoStop) {
+      throw new Error(`no autostop matching provider id ${internalId}`);
+    }
+
+    // grab the provider
+    const provider = this.getMatchingProvider(internalId);
+
+    await autoStop.stop(new LoggerImpl());
 
     // send the event
     this._onDidUpdateProvider.fire({

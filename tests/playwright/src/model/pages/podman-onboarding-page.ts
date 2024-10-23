@@ -23,6 +23,7 @@ import { OnboardingPage } from './onboarding-page';
 
 export class PodmanOnboardingPage extends OnboardingPage {
   readonly podmanAutostartToggle: Locator;
+  readonly podmanAutostopToggle: Locator;
   readonly createMachinePageTitle: Locator;
   readonly machineCreationForm: MachineCreationForm;
   readonly podmanMachineShowLogsButton: Locator;
@@ -32,6 +33,9 @@ export class PodmanOnboardingPage extends OnboardingPage {
     super(page);
     this.podmanAutostartToggle = this.mainPage.getByRole('checkbox', {
       name: 'Autostart Podman engine when launching Podman Desktop',
+    });
+    this.podmanAutostopToggle = this.mainPage.getByRole('checkbox', {
+      name: 'Autostop Podman engine when exiting Podman Desktop',
     });
     this.createMachinePageTitle = this.onboardingComponent.getByLabel('title');
     this.machineCreationForm = new MachineCreationForm(this.page);

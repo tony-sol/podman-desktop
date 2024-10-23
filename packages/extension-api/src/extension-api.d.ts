@@ -617,6 +617,15 @@ declare module '@podman-desktop/api' {
   }
 
   /**
+   * By providing this interface, when Podman Desktop is stopping
+   * It'll stop the provider through this interface.
+   * It can be turned off/on by the user.
+   */
+  export interface ProviderAutostop {
+    stop(logger: Logger): Promise<void>;
+  }
+
+  /**
    * Allow to clean some resources in case for example
    */
   export interface ProviderCleanup {
@@ -665,6 +674,9 @@ declare module '@podman-desktop/api' {
 
     // register autostart flow
     registerAutostart(autostart: ProviderAutostart): Disposable;
+
+    // register autostart flow
+    registerAutostop(autostop: ProviderAutostop): Disposable;
 
     registerCleanup(cleanup: ProviderCleanup): Disposable;
 
